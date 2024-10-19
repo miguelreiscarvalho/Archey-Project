@@ -1,25 +1,33 @@
 import cv2 as cv
 import numpy as np
 import mediapipe as mp
-from pynput.mouse import Button, Controller
+from pynput.mouse import Controller
 from tkinter import *
 import threading
 import time
 import pyautogui as pa
-from deepface import DeepFace
-import win32api
-import win32con
 import keyboard
+import os
+import pygame
+from winotify import Notification
 
+notitication_esquerdo = Notification(app_id='Archey', title='Botão Esquerdo Ativado')
+notitication_pressionar = Notification(app_id='Archey', title='Função Pressionar Ativada')
+notitication_direito = Notification(app_id='Archey', title='Botão Direito Ativado')
+
+pygame.mixer.init()
+pygame.mixer.music.load("audio2.mp3")
+
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 """
 REQUISITOS PARA FUNCIONAMENTO
 Softwares necessários:
--IDE para execução do código (Pycharm, Visual Code)
--Python 3.8x
--Java JDK
+    - IDE para execução do código (Pycharm, Visual Code)
+    - Python 3.8x
+    - Java JDK
 
--Será necessário criar uma maquina virtual na IDE.
+Será necessário criar uma maquina virtual na IDE.
 
 Instalação:
 # Execute cada linha abaixo uma por vez
@@ -29,15 +37,20 @@ pip install numpy
 pip install mediapipe
 pip install pynput
 pip install pyautogui
-
+pip install keyboard
 
 
 COMANDOS
 
-CLICK - Levantar Sobrancelha
-DUPLO CLICK - Manter Sobrancelha Levantada
-PRESSIONAR - Abrir Boca
-BOTÃO DIREITO - Sorrir
+Funcionamento:
+
+Os gestos do mouse podem ser realizados a partir da troca entre as funções;
+    - Inicializa-se com o comando do Botão Esquerdo do mouse. Para trocar bastar sorrir.
+        1 - Botão Esquerdo
+        2 - Pressionar com o botão esquerdo
+        3 - Botão Direito do mouse
+
+    - Para executar basta levantar a sobrancelha
 
 Teclado Virtual
 https://apps.microsoft.com/detail/9nblggh35mpc?ocid=webpdpshare
@@ -88,13 +101,13 @@ PONTOS_EXT_OLHO_ESQ = [61, 76, 62, 78]
 PONTOS_EXT_OLHO_DIR = [308, 291, 308, 291]
 
 PONTOS_CONTORNO_ROSTO = [
-    10,  338,  297,  332,  284,  251,  389,  356,  454,  323,
-    361,  288,  397,  365,  379,  378,  400,  377,  152,  148,
-    176,  149,  150,  136,  172,  58,   132,  93,   234,  127,
-    162,  21,   54,   103,  67,   109  # Lista dos pontos que contornam o rosto
+    10, 338, 297, 332, 284, 251, 389, 356, 454, 323,
+    361, 288, 397, 365, 379, 378, 400, 377, 152, 148,
+    176, 149, 150, 136, 172, 58, 132, 93, 234, 127,
+    162, 21, 54, 103, 67, 109  # Lista dos pontos que contornam o rosto
 ]
 
-cap = cv.VideoCapture(1)
+cap = cv.VideoCapture(0)
 
 Modulos_Iniciais = 0
 
@@ -107,49 +120,6 @@ funcoes = 0
 key = 0
 action = ""
 mode = 0
-
-
-def detect_face():
-    face_cascade = cv.CascadeClassifier(cv.data.haarcascades + 'haarcascade_frontalface_default.xml')
-
-    face_rect = None
-    step = 0
-
-    while step <= 10:
-        #  while True:
-
-        ret, frame = cap.read()
-
-        if not ret:
-            break
-
-        frame = cv.resize(frame, (840, 560), fx=0, fy=0, interpolation=cv.INTER_CUBIC)
-        gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-
-        faces = face_cascade.detectMultiScale(
-            gray,
-            scaleFactor=1.3,
-            minNeighbors=10,
-            flags=cv.CASCADE_SCALE_IMAGE,
-        )
-        if len(faces) > 0:
-
-            step += 1
-            (x, y, w, h) = faces[0]
-            # Desenhar o retângulo ao redor do rosto
-            #cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-            # Mostrar o frame com o retângulo desenhado
-            #cv.imshow('Face Detection', frame)
-
-            face_rect = (x, y, w, h)
-
-        #cv.imshow('Face Detection', frame)
-
-    return face_rect
-
-
-face_rect = detect_face()
 
 
 def check_exit_key():
@@ -171,8 +141,6 @@ def main():
         x1 = ponto_central_horizontlal
         y2 = ponto_central_vertical
 
-        X, Y, W, H = face_rect
-
         while True:
 
             #  Variavies Globais
@@ -183,7 +151,7 @@ def main():
                 break
 
             frame = cv.flip(frame, 1)
-            frame = frame[Y-100:Y+H+20, X-90:X+W+60]
+            frame = frame[100:-100, 100:-100]
             frame = cv.resize(frame, (840, 560), fx=0, fy=0, interpolation=cv.INTER_CUBIC)
             #  frame = cv.resize(frame, (360, 240))
             rgb_frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
@@ -199,13 +167,19 @@ def main():
                 narizX, narizY = mesh_points[4]
 
                 #  Coleta de pontos no eixo x, y e o raio do circulo criado
-                (olho_direitoX, olho_direitoY), olho_direitoRaio = cv.minEnclosingCircle(mesh_points[PONTOS_IRIS_DIREITA])
-                (olho_esquerdoX, olho_esquerdoY), olho_esquerdoRaio = cv.minEnclosingCircle(mesh_points[PONTOS_IRIS_ESQUERDA])
-                (labio_superiorX, labio_superiorY), labio_superiorRaio = cv.minEnclosingCircle(mesh_points[PONTOS_LABIO_SUPERIOR])
-                (labio_inferiorX, labio_inferiorY), labio_inferiorRaio = cv.minEnclosingCircle(mesh_points[PONTOS_LABIO_INFERIOR])
+                (olho_direitoX, olho_direitoY), olho_direitoRaio = cv.minEnclosingCircle(
+                    mesh_points[PONTOS_IRIS_DIREITA])
+                (olho_esquerdoX, olho_esquerdoY), olho_esquerdoRaio = cv.minEnclosingCircle(
+                    mesh_points[PONTOS_IRIS_ESQUERDA])
+                (labio_superiorX, labio_superiorY), labio_superiorRaio = cv.minEnclosingCircle(
+                    mesh_points[PONTOS_LABIO_SUPERIOR])
+                (labio_inferiorX, labio_inferiorY), labio_inferiorRaio = cv.minEnclosingCircle(
+                    mesh_points[PONTOS_LABIO_INFERIOR])
                 (sobrancelhaX, sobrancelhaY), sobrancelhaRaio = cv.minEnclosingCircle(mesh_points[SOBRANCELHA])
-                (ext_boca_esqX, ext_boca_esqY), Ext_Boca_Esq_Raio = cv.minEnclosingCircle(mesh_points[PONTOS_EXT_OLHO_ESQ])
-                (ext_boca_direitoX, ext_boca_direitoY), Ext_Boca_Dir_Raio = cv.minEnclosingCircle(mesh_points[PONTOS_EXT_OLHO_DIR])
+                (ext_boca_esqX, ext_boca_esqY), Ext_Boca_Esq_Raio = cv.minEnclosingCircle(
+                    mesh_points[PONTOS_EXT_OLHO_ESQ])
+                (ext_boca_direitoX, ext_boca_direitoY), Ext_Boca_Dir_Raio = cv.minEnclosingCircle(
+                    mesh_points[PONTOS_EXT_OLHO_DIR])
 
                 Eixo_Labio_Superior = (np.array([labio_superiorX, labio_superiorY], dtype=np.int32))
                 Eixo_Labio_Inferior = (np.array([labio_inferiorX, labio_inferiorY], dtype=np.int32))
@@ -218,7 +192,6 @@ def main():
                 Eixo_centro_olho_esq = (np.array([olho_esquerdoX, olho_esquerdoY], dtype=np.int32))
                 #  Parte gráfica/visual dos pontos utilizados no algoritmo
                 #  circle(imagem, coordenadas, tamanho, cor, espessura, tipo)
-
 
                 #  Olho Direito
                 cv.circle(frame, centro_olho_dir, int(olho_direitoRaio * 0.3), (255, 0, 255), 1, cv.LINE_AA)
@@ -245,7 +218,6 @@ def main():
                 cv.line(frame, Eixo_Ext_Boca_Esquerdo, Eixo_Ext_Boca_Direito, (255, 0, 0), 1)
                 cv.line(frame, Eixo_centro_olho_esq, Eixo_Sobrancelha, (255, 0, 0), 1)
 
-
             #  x = ((olho_direitoX + olho_esquerdoX) * 0.5)
             #  y = ((olho_direitoY + olho_esquerdoY) * 0.5)
 
@@ -262,8 +234,8 @@ def main():
                 first_value_y = y
                 on_off = 1
 
-            campo_livrex = 20
-            campo_livrey = 20
+            campo_livrex = 30
+            campo_livrey = 30
 
             velocidade = 3
 
@@ -271,7 +243,7 @@ def main():
             #  distancia_cp = [ponto_central_horizontlal, ponto_central_vertical]
             #  print(distancia_cp)
 
-            fator_movimento = 0.3
+            fator_movimento = 0.4
 
             cv.rectangle(frame, [first_value_x - campo_livrex, first_value_y - campo_livrey],
                          [first_value_x + campo_livrex, first_value_y + campo_livrey]
@@ -350,7 +322,7 @@ def main():
                 y2 = (ponto_central_vertical + (ganhoy * sensibilidadeY))
 
                 mouse.position = (x1, y2)
-                
+
             """
 
             # Funções
@@ -366,8 +338,7 @@ def main():
                 Modulo_Press_Inicial = Modulo_Press
                 Modulos_Iniciais = 1
 
-            if distancia_cp[0] <= 15 and distancia_cp[1] <= 7:
-
+            if distancia_cp[0] <= 30 and distancia_cp[1] <= 30:
 
                 # print(f"CLick - {Modulo_Click_Inicial} - {Modulo_Click}")
                 # print(f"Press - {Modulo_Press_Inicial} - {Modulo_Press}")
@@ -377,8 +348,8 @@ def main():
 
                     funcoes = 1
 
-                elif Modulo_Direito >= Modulo_Direito_Inicial + 8:
-                #    print("Press")
+                elif Modulo_Direito >= Modulo_Direito_Inicial + 15:
+                    #    print("Press")
                     funcoes = 2
 
                 else:
@@ -393,12 +364,12 @@ def main():
             key = cv.waitKey(1)
 
             if check_exit_key():
-
                 funcoes = 6
                 break
 
     cap.release()
     cv.destroyAllWindows()
+
 
 """
 def emotions():
@@ -456,6 +427,7 @@ def emotions():
 
 key_acess = 0
 
+
 def gestosPontos():
     global funcoes
 
@@ -478,6 +450,7 @@ def gestosPontos():
                     if comando == 0:
                         print("Clicou")
                         pa.click()
+                        pygame.mixer.music.play()
                         time.sleep(0.3)
 
                     if comando == 1:
@@ -485,19 +458,22 @@ def gestosPontos():
                         if ativo:
                             print("Pressionou")
                             pa.mouseDown()
-                            time.sleep(0.5)
+                            pygame.mixer.music.play()
+                            time.sleep(1)
                             ativo = False
 
                         else:
                             print("Soltou")
                             pa.mouseUp()
-                            time.sleep(0.5)
+                            pygame.mixer.music.play()
+                            time.sleep(1)
                             ativo = True
 
                     if comando == 2:
                         print("Click Direito")
                         pa.click(button="right")
-                        time.sleep(0.2)
+                        pygame.mixer.music.play()
+                        time.sleep(1)
 
             elif funcoes == 2:
 
@@ -511,16 +487,22 @@ def gestosPontos():
 
                     if comando == 0:
                         print("Click Ativado")
+                        notitication_esquerdo.show()
+                        time.sleep(1.5)
 
                     elif comando == 1:
                         print("Pressionar Ativado")
+                        notitication_pressionar.show()
+
+                        time.sleep(1.5)
 
                     elif comando == 2:
                         print("Click Direito Ativado")
+                        notitication_direito.show()
+                        time.sleep(1.5)
 
             elif funcoes == 6:
                 break
-
         except:
             pass
 
