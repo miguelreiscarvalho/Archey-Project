@@ -38,6 +38,8 @@ pip install mediapipe
 pip install pynput
 pip install pyautogui
 pip install keyboard
+pip install pygame
+pip install winotify
 
 
 COMANDOS
