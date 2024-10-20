@@ -10,15 +10,28 @@ import keyboard
 import os
 import pygame
 from winotify import Notification
-
-notitication_esquerdo = Notification(app_id='Archey', title='Botão Esquerdo Ativado')
-notitication_pressionar = Notification(app_id='Archey', title='Função Pressionar Ativada')
-notitication_direito = Notification(app_id='Archey', title='Botão Direito Ativado')
-
-pygame.mixer.init()
-pygame.mixer.music.load("audio2.mp3")
+import random
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
+
+pygame.mixer.init()
+
+
+notitication_esquerdo = Notification(app_id='Archey',
+                                     title='Botão Esquerdo Ativado',
+                                     duration='short',
+                                     icon=f"{os.path.dirname(os.path.abspath(__file__))}/archey2.png")
+
+notitication_pressionar = Notification(app_id='Archey',
+                                       title='Função Pressionar Ativada',
+                                       duration='short',
+                                       icon=f"{os.path.dirname(os.path.abspath(__file__))}/archey2.png")
+
+notitication_direito = Notification(app_id='Archey',
+                                    title='Botão Direito Ativado',
+                                    duration='short',
+                                    icon=f"{os.path.dirname(os.path.abspath(__file__))}/archey2.png")
 
 """
 REQUISITOS PARA FUNCIONAMENTO
@@ -109,7 +122,7 @@ PONTOS_CONTORNO_ROSTO = [
     162, 21, 54, 103, 67, 109  # Lista dos pontos que contornam o rosto
 ]
 
-cap = cv.VideoCapture(0)
+cap = cv.VideoCapture(2)
 
 Modulos_Iniciais = 0
 
@@ -123,6 +136,47 @@ key = 0
 action = ""
 mode = 0
 
+def detect_face():
+    face_cascade = cv.CascadeClassifier(cv.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    face_rect = None
+    step = 0
+    while step <= 3:
+    #  while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        frame = cv.flip(frame, 1)
+        frame = cv.resize(frame, (840, 560), fx=0, fy=0, interpolation=cv.INTER_CUBIC)
+        gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(
+            gray,
+            scaleFactor=1.3,
+            minNeighbors=10,
+            flags=cv.CASCADE_SCALE_IMAGE,
+        )
+        if len(faces) > 0:
+            step += 1
+
+            (x, y, w, h) = faces[0]
+
+            # Desenhar o retângulo ao redor do rosto
+            #  cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+            # Mostrar o frame com o retângulo desenhado
+            #  cv.imshow('Face Detection', frame)
+
+            face_rect = (x, y, w, h)
+
+        #  cv.imshow('Face Detection', frame)
+
+        key = cv.waitKey(1)
+
+    return face_rect
+
+
+face_rect = detect_face()
+print(face_rect)
 
 def check_exit_key():
     if keyboard.is_pressed('f12'):  # Detecta se a tecla 'F12' foi pressionada
@@ -143,6 +197,19 @@ def main():
         x1 = ponto_central_horizontlal
         y2 = ponto_central_vertical
 
+        X, Y, W, H = face_rect
+
+        cv.namedWindow('Archey', cv.WINDOW_NORMAL)
+        cv.setWindowProperty('Archey', cv.WND_PROP_TOPMOST, 1)
+
+        def move_window(event, x, y, flags, param):
+            if event == cv.EVENT_MOUSEMOVE:
+                new_x = random.randint(0, largura_monitor-352)
+                new_y = random.randint(0, altura_monitor-288)
+                cv.moveWindow('Archey', new_x, new_y)
+
+
+
         while True:
 
             #  Variavies Globais
@@ -153,8 +220,10 @@ def main():
                 break
 
             frame = cv.flip(frame, 1)
-            frame = frame[100:-100, 100:-100]
+            #  frame = frame[100:-100, 100:-100]
             frame = cv.resize(frame, (840, 560), fx=0, fy=0, interpolation=cv.INTER_CUBIC)
+            frame = frame[Y-50:Y + H + 50, X - 30:X + W + 30]
+
             #  frame = cv.resize(frame, (360, 240))
             rgb_frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
             img_h, img_w = frame.shape[:2]
@@ -194,6 +263,8 @@ def main():
                 Eixo_centro_olho_esq = (np.array([olho_esquerdoX, olho_esquerdoY], dtype=np.int32))
                 #  Parte gráfica/visual dos pontos utilizados no algoritmo
                 #  circle(imagem, coordenadas, tamanho, cor, espessura, tipo)
+
+
 
                 #  Olho Direito
                 cv.circle(frame, centro_olho_dir, int(olho_direitoRaio * 0.3), (255, 0, 255), 1, cv.LINE_AA)
@@ -236,8 +307,8 @@ def main():
                 first_value_y = y
                 on_off = 1
 
-            campo_livrex = 30
-            campo_livrey = 30
+            campo_livrex = 17
+            campo_livrey = 20
 
             velocidade = 3
 
@@ -245,7 +316,7 @@ def main():
             #  distancia_cp = [ponto_central_horizontlal, ponto_central_vertical]
             #  print(distancia_cp)
 
-            fator_movimento = 0.4
+            fator_movimento = 0.5
 
             cv.rectangle(frame, [first_value_x - campo_livrex, first_value_y - campo_livrey],
                          [first_value_x + campo_livrex, first_value_y + campo_livrey]
@@ -279,53 +350,6 @@ def main():
                 #  first_value_y += 1
                 mouse.position = (x1, y2)
 
-            """
-            if mode != 0 and not mode_press:
-                ponto_central_vertical = y2
-                ponto_central_horizontlal = x1
-                mode_press = True
-
-            elif mode == 0:
-                mode_press = False
-
-            if mode != 0 and x < first_value_x and y < first_value_y:
-                ganhox = first_value_x - x
-                ganhoy = first_value_y - y
-
-                x1 = (ponto_central_horizontlal - (ganhox * sensibilidadeX))
-                y2 = (ponto_central_vertical - (ganhoy * sensibilidadeY))
-
-                mouse.position = (x1, y2)
-
-            elif mode != 0 and x < first_value_x and y > first_value_y:
-                ganhox = first_value_x - x
-                ganhoy = y - first_value_y
-
-                x1 = (ponto_central_horizontlal - (ganhox * sensibilidadeX))
-                y2 = (ponto_central_vertical + (ganhoy * sensibilidadeY))
-
-                mouse.position = (x1, y2)
-
-            elif mode != 0 and x > first_value_x and y < first_value_y:
-                ganhox = x - first_value_x
-                ganhoy = first_value_y - y
-
-                x1 = (ponto_central_horizontlal + (ganhox * sensibilidadeX))
-                y2 = (ponto_central_vertical - (ganhoy * sensibilidadeY))
-
-                mouse.position = (x1, y2)
-
-            elif mode != 0 and x > first_value_x and y > first_value_y:
-
-
-                ganhox = x - first_value_x
-                ganhoy = y - first_value_y
-                x1 = (ponto_central_horizontlal + (ganhox * sensibilidadeX))
-                y2 = (ponto_central_vertical + (ganhoy * sensibilidadeY))
-
-                mouse.position = (x1, y2)
-
-            """
 
             # Funções
             Modulo_Click = Eixo_centro_olho_esq[1] - Eixo_Sobrancelha[1]
@@ -340,17 +364,18 @@ def main():
                 Modulo_Press_Inicial = Modulo_Press
                 Modulos_Iniciais = 1
 
-            if distancia_cp[0] <= 30 and distancia_cp[1] <= 30:
+            if (first_value_x - campo_livrex <= narizX <= first_value_x + campo_livrex) and \
+                    (first_value_y - campo_livrey <= narizY <= first_value_y + campo_livrey):
 
                 # print(f"CLick - {Modulo_Click_Inicial} - {Modulo_Click}")
                 # print(f"Press - {Modulo_Press_Inicial} - {Modulo_Press}")
                 # print(f"Direito - {Modulo_Direito_Inicial} - {Modulo_Direito}")
 
-                if Modulo_Click >= Modulo_Click_Inicial + 13:
+                if Modulo_Click >= Modulo_Click_Inicial + 8:
 
                     funcoes = 1
 
-                elif Modulo_Direito >= Modulo_Direito_Inicial + 15:
+                elif Modulo_Direito >= Modulo_Direito_Inicial + 9:
                     #    print("Press")
                     funcoes = 2
 
@@ -360,8 +385,10 @@ def main():
             else:
                 funcoes = 0
 
+
             frame = cv.resize(frame, (352, 288), fx=0, fy=0, interpolation=cv.INTER_CUBIC)
-            cv.imshow('img', frame)
+            cv.imshow('Archey', frame)
+            cv.setMouseCallback('Archey', move_window)
 
             key = cv.waitKey(1)
 
@@ -437,6 +464,8 @@ def gestosPontos():
     ativo = True
 
     print("Comando Atual: Click")
+    bloq = False
+
     while True:
         try:
 
@@ -452,6 +481,7 @@ def gestosPontos():
                     if comando == 0:
                         print("Clicou")
                         pa.click()
+                        pygame.mixer.music.load("audio2.mp3")
                         pygame.mixer.music.play()
                         time.sleep(0.3)
 
@@ -460,15 +490,17 @@ def gestosPontos():
                         if ativo:
                             print("Pressionou")
                             pa.mouseDown()
+                            pygame.mixer.music.load("audio2.mp3")
                             pygame.mixer.music.play()
-                            time.sleep(1)
+                            time.sleep(3)
                             ativo = False
 
                         else:
                             print("Soltou")
                             pa.mouseUp()
+                            pygame.mixer.music.load("audio2.mp3")
                             pygame.mixer.music.play()
-                            time.sleep(1)
+                            time.sleep(3)
                             ativo = True
 
                     if comando == 2:
@@ -481,7 +513,7 @@ def gestosPontos():
 
                 time.sleep(0.5)
 
-                if funcoes == 2:
+                if funcoes == 2 and bloq is False:
 
                     comando += 1
                     if comando >= 3:
@@ -489,22 +521,34 @@ def gestosPontos():
 
                     if comando == 0:
                         print("Click Ativado")
+                        pygame.mixer.music.load("audio1.mp3")
+                        pygame.mixer.music.play()
                         notitication_esquerdo.show()
-                        time.sleep(1.5)
+                        bloq = True
+                        #  time.sleep(1.5)
 
                     elif comando == 1:
                         print("Pressionar Ativado")
+                        pygame.mixer.music.load("audio1.mp3")
+                        pygame.mixer.music.play()
                         notitication_pressionar.show()
-
-                        time.sleep(1.5)
+                        bloq = True
+                        #  time.sleep(1.5)
 
                     elif comando == 2:
                         print("Click Direito Ativado")
+                        pygame.mixer.music.load("audio1.mp3")
+                        pygame.mixer.music.play()
                         notitication_direito.show()
-                        time.sleep(1.5)
+                        bloq = True
+                        #  time.sleep(1.5)
+
+            elif funcoes == 0:
+                bloq = False
 
             elif funcoes == 6:
                 break
+
         except:
             pass
 
