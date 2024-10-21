@@ -1,9 +1,10 @@
+import threading
+from concurrent.futures import ThreadPoolExecutor
+import mediapipe as mp
 import cv2 as cv
 import numpy as np
-import mediapipe as mp
 from pynput.mouse import Controller
 from tkinter import *
-import threading
 import time
 import pyautogui as pa
 import keyboard
@@ -81,7 +82,71 @@ root = Tk()
 altura_monitor = root.winfo_screenheight()
 largura_monitor = root.winfo_screenwidth()
 
-print(altura_monitor, largura_monitor)
+
+class ConfiguracaoCamera:
+    def __init__(self, master):
+        self.master = master
+
+        # Cor de fundo e tamanho fixo para a janela
+        self.master.configure(bg='black')
+
+        self.master.title("Archey (Configurações)")
+        self.master.iconbitmap("ArcheyIcon.ico")
+
+
+        self.master.geometry(f"{300}x{300}")
+        self.master.resizable(False, False)  # Desabilita redimensionamento
+
+        # Variáveis
+        self.cam = StringVar()  # Para armazenar o valor da câmera
+        self.sensibilidade = 0.1  # Sensibilidade inicial
+
+        # Configurar layout
+        self.criar_widgets()
+
+    def criar_widgets(self):
+        # Estilo da fonte
+        fonte_padrao = ('Copperplate Gothic Bold', 12)
+
+        # Campo da Câmera
+        Label(self.master, text="Camera:", font=fonte_padrao, bg='black', fg='white').pack(pady=10)
+        Entry(self.master, textvariable=self.cam, font='Calibri', width=25).pack(pady=5)
+
+        # Campo da Sensibilidade
+        self.label_sensibilidade = Label(self.master, text=f"Sensibilidade: {self.sensibilidade:.1f}",
+                                         font=fonte_padrao, bg='black', fg='white')
+        self.label_sensibilidade.pack(pady=10)
+
+        # Botões de controle da sensibilidade
+        Button(self.master, text="Aumentar", font=fonte_padrao, width=10, bg='#a3c1da',
+               command=self.aumentar_sensibilidade).pack(pady=5)
+        Button(self.master, text="Diminuir", font=fonte_padrao, width=10, bg='#f7a072',
+               command=self.diminuir_sensibilidade).pack(pady=5)
+
+        # Botão Confirmar
+        Button(self.master, text="Confirmar", font=fonte_padrao, width=15, bg='#5cb85c', fg='white',
+               command=self.confirmar).pack(pady=20)
+
+    def aumentar_sensibilidade(self):
+        if self.sensibilidade < 1:
+            self.sensibilidade += 0.1
+            self.label_sensibilidade.config(text=f"Sensibilidade: {self.sensibilidade:.1f}")
+
+    def diminuir_sensibilidade(self):
+        if self.sensibilidade > 0.1:
+            self.sensibilidade -= 0.1
+            self.label_sensibilidade.config(text=f"Sensibilidade: {self.sensibilidade:.1f}")
+
+    def confirmar(self):
+        camera_valor = self.cam.get()
+        #  print(f"Câmera: {camera_valor}")
+        #  print(f"Sensibilidade: {self.sensibilidade:.1f}")
+        self.master.destroy()  # Fecha a janela
+
+app = ConfiguracaoCamera(root)
+root.mainloop()
+
+#  print(altura_monitor, largura_monitor)
 
 #  Aqui é definido o centro do monitor. Esse dado será usado futuramente para inicialização
 #  do controle do mouse.
@@ -101,8 +166,6 @@ mouse = Controller()
 
 x, y = ponto_central_horizontlal, ponto_central_vertical
 
-#  mp_face_mesh é responsável por coletar a solução que utiliza a malha do rosto.
-mp_face_mesh = mp.solutions.face_mesh
 PONTOS_OLHO_ESQUERDO = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398]
 # right eyes indices
 PONTOS_OLHO_DIREITO = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246]
@@ -122,7 +185,11 @@ PONTOS_CONTORNO_ROSTO = [
     162, 21, 54, 103, 67, 109  # Lista dos pontos que contornam o rosto
 ]
 
-cap = cv.VideoCapture(2)
+if len(app.cam.get()) > 5:
+    cap = cv.VideoCapture(f"{app.cam.get()}")
+
+else:
+    cap = cv.VideoCapture(int(app.cam.get()))
 
 Modulos_Iniciais = 0
 
@@ -136,8 +203,9 @@ key = 0
 action = ""
 mode = 0
 
+
 def detect_face():
-    face_cascade = cv.CascadeClassifier(cv.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    face_cascade = cv.CascadeClassifier('haarcascade_frontalface_default.xml')
     face_rect = None
     step = 0
     while step <= 3:
@@ -172,11 +240,13 @@ def detect_face():
 
         key = cv.waitKey(1)
 
+    cv.destroyAllWindows()
     return face_rect
 
 
 face_rect = detect_face()
-print(face_rect)
+#  print(face_rect)
+
 
 def check_exit_key():
     if keyboard.is_pressed('f12'):  # Detecta se a tecla 'F12' foi pressionada
@@ -184,15 +254,14 @@ def check_exit_key():
     return False
 
 
-def main():
-    with mp_face_mesh.FaceMesh(
+def archey():
+    with mp.solutions.face_mesh.FaceMesh(
             static_image_mode=True,
             max_num_faces=1,
             refine_landmarks=True,
             min_detection_confidence=0.1,
             min_tracking_confidence=0
     ) as face_mesh:
-
         global ponto_central_horizontlal, ponto_central_vertical
         x1 = ponto_central_horizontlal
         y2 = ponto_central_vertical
@@ -209,15 +278,15 @@ def main():
                 cv.moveWindow('Archey', new_x, new_y)
 
 
-
         while True:
-
             #  Variavies Globais
             global funcoes, Modulos_Iniciais, on_off
 
             ret, frame = cap.read()
             if not ret:
+
                 break
+
 
             frame = cv.flip(frame, 1)
             #  frame = frame[100:-100, 100:-100]
@@ -229,6 +298,7 @@ def main():
             img_h, img_w = frame.shape[:2]
             results = face_mesh.process(rgb_frame)
             if results.multi_face_landmarks:
+
                 # print(results.multi_face_landmarks[0].landmark)
                 mesh_points = np.array(
                     [np.multiply([p.x, p.y], [img_w, img_h]).astype(int) for p in
@@ -316,7 +386,7 @@ def main():
             #  distancia_cp = [ponto_central_horizontlal, ponto_central_vertical]
             #  print(distancia_cp)
 
-            fator_movimento = 0.5
+            fator_movimento = app.sensibilidade
 
             cv.rectangle(frame, [first_value_x - campo_livrex, first_value_y - campo_livrey],
                          [first_value_x + campo_livrex, first_value_y + campo_livrey]
@@ -396,6 +466,7 @@ def main():
                 funcoes = 6
                 break
 
+
     cap.release()
     cv.destroyAllWindows()
 
@@ -463,14 +534,15 @@ def gestosPontos():
     comando = 0
     ativo = True
 
-    print("Comando Atual: Click")
+    #  print("Comando Atual: Click")
     bloq = False
 
     while True:
         try:
 
             # Gastar memoria
-            print("", end="")
+            #print("", end="")
+            time.sleep(0.001)
 
             if funcoes == 1:
 
@@ -479,7 +551,7 @@ def gestosPontos():
                 if funcoes == 1:
 
                     if comando == 0:
-                        print("Clicou")
+                        #  print("Clicou")
                         pa.click()
                         pygame.mixer.music.load("audio2.mp3")
                         pygame.mixer.music.play()
@@ -488,7 +560,7 @@ def gestosPontos():
                     if comando == 1:
 
                         if ativo:
-                            print("Pressionou")
+                            #  print("Pressionou")
                             pa.mouseDown()
                             pygame.mixer.music.load("audio2.mp3")
                             pygame.mixer.music.play()
@@ -496,7 +568,7 @@ def gestosPontos():
                             ativo = False
 
                         else:
-                            print("Soltou")
+                            #  print("Soltou")
                             pa.mouseUp()
                             pygame.mixer.music.load("audio2.mp3")
                             pygame.mixer.music.play()
@@ -504,7 +576,7 @@ def gestosPontos():
                             ativo = True
 
                     if comando == 2:
-                        print("Click Direito")
+                        #  print("Click Direito")
                         pa.click(button="right")
                         pygame.mixer.music.play()
                         time.sleep(1)
@@ -520,7 +592,7 @@ def gestosPontos():
                         comando = 0
 
                     if comando == 0:
-                        print("Click Ativado")
+                        #  print("Click Ativado")
                         pygame.mixer.music.load("audio1.mp3")
                         pygame.mixer.music.play()
                         notitication_esquerdo.show()
@@ -528,7 +600,7 @@ def gestosPontos():
                         #  time.sleep(1.5)
 
                     elif comando == 1:
-                        print("Pressionar Ativado")
+                        #  print("Pressionar Ativado")
                         pygame.mixer.music.load("audio1.mp3")
                         pygame.mixer.music.play()
                         notitication_pressionar.show()
@@ -536,7 +608,7 @@ def gestosPontos():
                         #  time.sleep(1.5)
 
                     elif comando == 2:
-                        print("Click Direito Ativado")
+                        #  print("Click Direito Ativado")
                         pygame.mixer.music.load("audio1.mp3")
                         pygame.mixer.music.play()
                         notitication_direito.show()
@@ -553,6 +625,6 @@ def gestosPontos():
             pass
 
 
-threading.Thread(target=main).start()
-time.sleep(0.5)
+threading.Thread(target=archey).start()
+time.sleep(3)
 gestosPontos()
