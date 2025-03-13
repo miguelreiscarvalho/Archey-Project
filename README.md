@@ -11,8 +11,6 @@ With this solution, I offer a diversified and personalized experience—the abil
 
 Here is the list of prerequisites for using the software.
 
-Aqui está a tradução com o link em markdown:
-
 - **Webcam** (Essential feature, ensure that a webcam is installed on your machine to enable recognition and proper software operation).
 - You need to have at least a computer with intermediate specifications, so it can run multiple software applications that use a moderate amount of RAM. This way, the software can deliver better performance and ensure smooth operation.
 - Install the third-party software **[Virtual Keyboard](https://apps.microsoft.com/detail/9NBLGGH35MPC?hl=en&gl=US)**, which allows you to type without using a physical keyboard. 
@@ -41,9 +39,6 @@ pip install pyautogui
 pip install deepface
 
 ```
-
-Aqui está a tradução para inglês do texto fornecido:
-
 ## 🛠 Usage
 To run the project, you must have a webcam installed and positioned as centrally as possible with your face. Try checking this by opening the pre-installed "Camera" software on your computer to ensure your face is as aligned as possible with the webcam.
 
