@@ -56,6 +56,16 @@ cap = cv.VideoCapture(0)
 - **Press and Hold** - Open mouth
 - **Right Click** - Smile
 
+The movement of the mouse across the computer screen functions similarly to a video game joystick, where you need to move it in a certain direction to perform an action. In this case, your face will act as the joystick, and by moving your head, the cursor will respond by following the same direction as your face.
 
+When you run the software, a tab containing your webcam image will open on the computer. Don't worry; it won't interfere with using the program. Whenever the cursor passes over the tab, it will automatically move to another corner of the screen.
+
+This tab has several points that mark specific parts of your face and will follow your movements.
+
+## **The Points**
+Most of the points drawn are used to detect the movements made on your face and, consequently, the desired facial expressions.
+
+### **Nose**
+The point represented at the tip of the nose acts as the joystick pointer and is responsible for controlling the mouse position. Notice that there is a square right in the center of the tab showing your face; the area inside this square is called the "dead zone," where the mouse does not move, and facial expressions are verified. This means the mouse will only move if you move the point drawn on the nose outside the square. Additionally, the facial expressions responsible for performing other mouse functions are only executed when the nose point is inside this square. Therefore, when it is outside, other mouse functions will be blocked for safety reasons and to ensure the software operates smoothly, preventing unwanted actions.
 
 
